@@ -64,9 +64,6 @@ function Page() {
           <div className="w-full">
             <label className="text-[#202224] text-sm flex justify-between opacity-80">
               Password
-              <Link href="#" className="text-sm text-[#4880FF] opacity-70 hover:underline">
-                Forgot Password?
-              </Link>
             </label>
             <input
               type="password"
@@ -76,13 +73,6 @@ function Page() {
               className="w-full mt-1 border border-[#B9B9B975] rounded-md p-3 text-sm bg-[#F1F4F9]"
               required
             />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="remember" className="accent-[#4880FF]" defaultChecked />
-            <label htmlFor="remember" className="text-sm text-[#202224] opacity-70">
-              Remember Password
-            </label>
           </div>
 
           {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
