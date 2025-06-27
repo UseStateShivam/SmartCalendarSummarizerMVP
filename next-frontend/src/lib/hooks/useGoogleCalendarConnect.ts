@@ -25,29 +25,33 @@ export const useGoogleCalendarConnect = () => {
           body: JSON.stringify({ code }),
         })
 
-        const data = await response.json()
+        const data: { error?: string; access_token?: string } = await response.json()
 
         if (data.error) {
           setError(data.error)
-        } else {
-          // Store token securely in cookie (via server route)
+        } else if (data.access_token) {
           await fetch('/api/set-cookie', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ accessToken: data.access_token }),
           })
-
           router.push('/dashboard')
+        } else {
+          setError('Invalid response from token exchange')
         }
-      } catch (err: any) {
-        setError(err.message || 'Something went wrong')
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message)
+        } else {
+          setError('Something went wrong')
+        }
       } finally {
         setLoading(false)
       }
     }
 
     exchangeCode()
-  }, [])
+  }, [router, searchParams]) 
 
   return { loading, error }
 }
