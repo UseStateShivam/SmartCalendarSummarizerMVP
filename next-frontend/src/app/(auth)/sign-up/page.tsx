@@ -2,36 +2,19 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useSignUp } from '@/lib/hooks/useSignUp' // <-- import the hook
 
 function SignUpPage() {
-  const [email, setEmail] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const router = useRouter()
-  const supabase = createClientComponentClient()
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { username },
-      },
-    })
-
-    if (error) {
-      setError(error.message)
-    } else {
-      router.push('/dashboard')
-    }
-  }
+  const {
+    email,
+    setEmail,
+    username,
+    setUsername,
+    password,
+    setPassword,
+    error,
+    handleSignUp,
+  } = useSignUp()
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center relative px-4">
