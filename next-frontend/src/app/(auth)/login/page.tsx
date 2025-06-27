@@ -9,7 +9,6 @@ function Page() {
 
   return (
     <main className="min-h-screen w-full flex items-center justify-center relative px-4">
-      {/* Background */}
       <div className="absolute inset-0 z-0">
         <Image
           src="/Shape.svg"
@@ -20,7 +19,6 @@ function Page() {
         />
       </div>
 
-      {/* Card */}
       <div className="relative z-10 w-full max-w-md sm:max-w-lg md:max-w-xl lg:max-w-md bg-white rounded-2xl shadow-lg p-8 border border-[#B9B9B9]">
         <h2 className="text-[#202224] text-2xl sm:text-3xl font-semibold text-center mb-2">
           Login to Account
