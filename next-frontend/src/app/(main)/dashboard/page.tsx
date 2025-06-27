@@ -1,44 +1,16 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { useRouter } from 'next/navigation'
+import { useDashboardData } from '@/lib/hooks/useDashboardData'
 
 const DashboardPage = () => {
-  const supabase = createClientComponentClient()
-  const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [events, setEvents] = useState<any[]>([])
-  const [loadingIndex, setLoadingIndex] = useState<number | null>(null)
-  const [isCalendarConnected, setIsCalendarConnected] = useState<boolean>(false)
-
-  useEffect(() => {
-    const fetchUserAndSummaries = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return router.push('/login')
-      setUser(user)
-
-      const res = await fetch('/api/events')
-      const data = await res.json()
-      if (!Array.isArray(data)) return console.error('Expected events array, got:', data)
-
-      if (data.length > 0) setIsCalendarConnected(true)
-
-      const { data: saved } = await supabase
-        .from('summaries')
-        .select('*')
-        .eq('user_id', user.id)
-
-      const merged = data.map((event: any) => {
-        const match = saved?.find((s) => s.event_id === event.id)
-        return { ...event, aiSummary: match?.summary || null }
-      })
-
-      setEvents(merged)
-    }
-
-    fetchUserAndSummaries()
-  }, [])
+  const {
+    user,
+    events,
+    loadingIndex,
+    isCalendarConnected,
+    generateSummary,
+    handleLogout
+  } = useDashboardData()
 
   const connectGoogleCalendar = () => {
     const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
@@ -46,43 +18,6 @@ const DashboardPage = () => {
     const scope = encodeURIComponent("https://www.googleapis.com/auth/calendar.readonly")
     const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`
     window.location.href = url
-  }
-
-  const generateSummary = async (event: any, index: number) => {
-    try {
-      setLoadingIndex(index)
-      const res = await fetch('/api/summarize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: event.summary }),
-      })
-
-      const data = await res.json()
-      const newSummary = data.summary
-      const updated = [...events]
-      updated[index].aiSummary = newSummary
-      setEvents(updated)
-
-      const { error } = await supabase.from('summaries').upsert(
-        [{
-          user_id: user.id,
-          event_id: event.id,
-          summary: newSummary,
-        }],
-        { onConflict: 'user_id,event_id' }
-      )
-
-      if (error) console.error('Supabase upsert error:', error)
-    } catch (err) {
-      console.error('Error generating or saving summary:', err)
-    } finally {
-      setLoadingIndex(null)
-    }
-  }
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
   }
 
   return (
