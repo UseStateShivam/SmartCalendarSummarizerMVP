@@ -31,14 +31,17 @@ const ConnectPage = () => {
         if (data.error) {
           setError(data.error)
         } else {
-          // Store token in localStorage (or Supabase if you want)
-          localStorage.setItem('google_access_token', data.access_token)
+          // Store token securely in cookie (via server route)
+          await fetch('/api/set-cookie', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessToken: data.access_token }),
+          })
 
-          // Optionally, redirect with event data
           router.push('/dashboard')
         }
       } catch (err: any) {
-        setError(err.message)
+        setError(err.message || 'Something went wrong')
       } finally {
         setLoading(false)
       }

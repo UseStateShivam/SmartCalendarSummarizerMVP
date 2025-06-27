@@ -10,55 +10,52 @@ const DashboardPage = () => {
   const [user, setUser] = useState<any>(null)
   const [events, setEvents] = useState<any[]>([])
 
-  // 🔐 Get Supabase user and protect route
   useEffect(() => {
-    const getUser = async () => {
+    const fetchUserAndSummaries = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) router.push('/login')
-      else setUser(user)
-    }
+      if (!user) return router.push('/login')
+      setUser(user)
 
-    getUser()
-  }, [])
+      // Step 1: Fetch calendar events
+      const res = await fetch('/api/events')
+      const data = await res.json()
 
-  // 📆 Fetch calendar events
-  useEffect(() => {
-    const fetchEvents = async () => {
-      const token = localStorage.getItem('google_access_token')
-      if (!token) return
-
-      try {
-        const res = await fetch(
-          'https://www.googleapis.com/calendar/v3/calendars/primary/events',
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        )
-
-        const data = await res.json()
-        if (data.items) {
-          setEvents(
-            data.items.map((event: any) => ({
-              id: event.id,
-              summary: event.summary || '(No title)',
-              start: event.start?.dateTime || event.start?.date || '',
-              aiSummary: '', // Will be filled by OpenAI
-            }))
-          )
-        } else {
-          console.error('No events:', data)
-        }
-      } catch (err) {
-        console.error('Error fetching events:', err)
+      if (!Array.isArray(data)) {
+        console.error('Expected events array, got:', data)
+        return
       }
+
+      const calendarEvents = data
+
+      // Step 2: Get saved summaries from Supabase
+      const { data: saved } = await supabase
+        .from('summaries')
+        .select('*')
+        .eq('user_id', user.id)
+
+      // Step 3: Merge saved summaries into events
+      const merged = calendarEvents.map((event: any) => {
+        const match = saved?.find((s) => s.event_id === event.id)
+        return {
+          ...event,
+          aiSummary: match?.summary || null,
+        }
+      })
+
+      setEvents(merged)
     }
 
-    fetchEvents()
+    fetchUserAndSummaries()
   }, [])
 
-  // 🔁 Generate OpenAI summary
+  const connectGoogleCalendar = () => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
+    const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI
+    const scope = encodeURIComponent("https://www.googleapis.com/auth/calendar.readonly")
+    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`
+    window.location.href = url
+  }
+
   const generateSummary = async (event: any, index: number) => {
     try {
       const res = await fetch('/api/summarize', {
@@ -68,26 +65,24 @@ const DashboardPage = () => {
       })
 
       const data = await res.json()
+      const newSummary = data.summary
 
       const updated = [...events]
-      updated[index].aiSummary = data.summary
+      updated[index].aiSummary = newSummary
       setEvents(updated)
+
+      await supabase.from('summaries').upsert([
+        {
+          user_id: user.id,
+          event_id: event.id,
+          summary: newSummary,
+        },
+      ])
     } catch (err) {
-      console.error('Error generating summary:', err)
+      console.error('Error generating or saving summary:', err)
     }
   }
 
-
-  // 🔗 Start Google OAuth flow
-  const connectGoogleCalendar = () => {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID
-    const redirectUri = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URI
-    const scope = encodeURIComponent("https://www.googleapis.com/auth/calendar.readonly")
-    const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`
-    window.location.href = url
-  }
-
-  // 🚪 Logout
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/login')
@@ -117,18 +112,13 @@ const DashboardPage = () => {
             <div key={event.id} className="bg-[#F1F4F9] text-black p-6 rounded-lg shadow-md">
               <h2 className="text-xl font-semibold">{event.summary}</h2>
               <p className="text-sm text-gray-600">{event.start}</p>
-              <p className="mt-2">
-                {event.aiSummary ? event.aiSummary : (
-                  <span className="text-[#B9B9B9] italic">No summary yet.</span>
-                )}
-              </p>
+              <p className="mt-2">{event.aiSummary || 'No summary yet.'}</p>
               <button
                 onClick={() => generateSummary(event, index)}
                 className="mt-4 bg-[#4880FF] text-white px-4 py-2 rounded hover:bg-blue-600"
               >
-                Regenerate Summary
+                {event.aiSummary ? 'Regenerate Summary' : 'Generate Summary'}
               </button>
-
             </div>
           ))
         )}
