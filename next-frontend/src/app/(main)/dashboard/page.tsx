@@ -9,8 +9,7 @@ const DashboardPage = () => {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [events, setEvents] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [generatingIndex, setGeneratingIndex] = useState<number | null>(null)
+  const [loadingIndex, setLoadingIndex] = useState<number | null>(null)
 
   useEffect(() => {
     const fetchUserAndSummaries = async () => {
@@ -18,22 +17,24 @@ const DashboardPage = () => {
       if (!user) return router.push('/login')
       setUser(user)
 
+      // Step 1: Fetch calendar events
       const res = await fetch('/api/events')
       const data = await res.json()
 
       if (!Array.isArray(data)) {
         console.error('Expected events array, got:', data)
-        setLoading(false)
         return
       }
 
       const calendarEvents = data
 
+      // Step 2: Get saved summaries from Supabase
       const { data: saved } = await supabase
         .from('summaries')
         .select('*')
         .eq('user_id', user.id)
 
+      // Step 3: Merge saved summaries into events
       const merged = calendarEvents.map((event: any) => {
         const match = saved?.find((s) => s.event_id === event.id)
         return {
@@ -43,7 +44,6 @@ const DashboardPage = () => {
       })
 
       setEvents(merged)
-      setLoading(false)
     }
 
     fetchUserAndSummaries()
@@ -59,44 +59,42 @@ const DashboardPage = () => {
 
   const generateSummary = async (event: any, index: number) => {
     try {
-      setGeneratingIndex(index)
+      setLoadingIndex(index)
 
       const res = await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: `${event.summary} (regen ${Date.now()})` }), // ⬅️ force change
+        body: JSON.stringify({ text: event.summary }),
       })
 
       const data = await res.json()
-
-      if (!res.ok || data.error) {
-        console.error('Summary generation failed:', data.error || res.statusText)
-        return
-      }
-
       const newSummary = data.summary
 
       const updated = [...events]
-      updated[index] = {
-        ...event,
-        aiSummary: newSummary,
-      }
+      updated[index].aiSummary = newSummary
       setEvents(updated)
 
-      await supabase.from('summaries').upsert([
-        {
+      // Proper upsert with error handling
+      const { error } = await supabase.from('summaries').upsert(
+        [{
           user_id: user.id,
           event_id: event.id,
           summary: newSummary,
-        },
-      ])
+        }],
+        { onConflict: 'user_id,event_id' } // ensure proper updating
+      )
+
+      if (error) {
+        console.error('Supabase upsert error:', error)
+      } else {
+        console.log('Summary saved successfully')
+      }
     } catch (err) {
       console.error('Error generating or saving summary:', err)
     } finally {
-      setGeneratingIndex(null)
+      setLoadingIndex(null)
     }
   }
-
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -119,34 +117,30 @@ const DashboardPage = () => {
         Connect Google Calendar
       </button>
 
-      {loading ? (
-        <p className="text-center text-[#B9B9B9]">Loading events...</p>
-      ) : (
-        <div className="grid gap-6">
-          {events.length === 0 ? (
-            <p className="text-[#B9B9B9]">No events yet. Connect your Google Calendar to get started.</p>
-          ) : (
-            events.map((event, index) => (
-              <div key={event.id} className="bg-[#F1F4F9] text-black p-6 rounded-lg shadow-md">
-                <h2 className="text-xl font-semibold">{event.summary}</h2>
-                <p className="text-sm text-gray-600">{event.start}</p>
-                <p className="mt-2">{event.aiSummary || 'No summary yet.'}</p>
-                <button
-                  onClick={() => generateSummary(event, index)}
-                  className="mt-4 bg-[#4880FF] text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-60"
-                  disabled={generatingIndex === index}
-                >
-                  {generatingIndex === index
-                    ? 'Generating...'
-                    : event.aiSummary
-                      ? 'Regenerate Summary'
-                      : 'Generate Summary'}
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      <div className="grid gap-6">
+        {events.length === 0 ? (
+          <p className="text-[#B9B9B9]">No events yet. Connect your Google Calendar to get started.</p>
+        ) : (
+          events.map((event, index) => (
+            <div key={event.id} className="bg-[#F1F4F9] text-black p-6 rounded-lg shadow-md">
+              <h2 className="text-xl font-semibold">{event.summary}</h2>
+              <p className="text-sm text-gray-600">{event.start}</p>
+              <p className="mt-2">{event.aiSummary || 'No summary yet.'}</p>
+              <button
+                onClick={() => generateSummary(event, index)}
+                disabled={loadingIndex === index}
+                className="mt-4 bg-[#4880FF] text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+              >
+                {loadingIndex === index
+                  ? 'Generating...'
+                  : event.aiSummary
+                    ? 'Regenerate Summary'
+                    : 'Generate Summary'}
+              </button>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   )
 }
