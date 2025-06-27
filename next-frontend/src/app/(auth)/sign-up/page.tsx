@@ -91,20 +91,13 @@ function SignUpPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="remember" className="accent-[#4880FF]" defaultChecked />
-            <label htmlFor="remember" className="text-sm text-[#202224] opacity-70">
-              Remember Password
-            </label>
-          </div>
-
           {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
 
           <button
             type="submit"
             className="bg-[#4880FF] text-white rounded-md py-2 font-medium w-full hover:opacity-90 mt-4 transition"
           >
-            Request Access
+            Sign Up
           </button>
         </form>
 
