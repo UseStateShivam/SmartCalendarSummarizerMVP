@@ -2,14 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClientComponentClient, User } from '@supabase/auth-helpers-nextjs'
 import { EventType } from '../types/event'
+
+interface Summary {
+  user_id: string
+  event_id: string
+  summary: string
+}
 
 export const useDashboardData = () => {
   const router = useRouter()
   const supabase = createClientComponentClient()
-
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [events, setEvents] = useState<EventType[]>([])
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null)
   const [isCalendarConnected, setIsCalendarConnected] = useState(false)
@@ -21,7 +26,7 @@ export const useDashboardData = () => {
       setUser(user)
 
       const res = await fetch('/api/events')
-      const data = await res.json()
+      const data: EventType[] = await res.json()
 
       if (!Array.isArray(data)) {
         console.error('Expected events array, got:', data)
@@ -35,8 +40,8 @@ export const useDashboardData = () => {
         .select('*')
         .eq('user_id', user.id)
 
-      const merged = data.map((event: any) => {
-        const match = saved?.find((s) => s.event_id === event.id)
+      const merged: EventType[] = data.map((event) => {
+        const match = (saved as Summary[] | null)?.find((s) => s.event_id === event.id)
         return { ...event, aiSummary: match?.summary || null }
       })
 
@@ -44,7 +49,7 @@ export const useDashboardData = () => {
     }
 
     fetchData()
-  }, [])
+  }, [router, supabase]) // ✅ Fix useEffect deps
 
   const generateSummary = async (event: EventType, index: number) => {
     try {
@@ -65,7 +70,7 @@ export const useDashboardData = () => {
 
       const { error } = await supabase.from('summaries').upsert(
         [{
-          user_id: user.id,
+          user_id: user?.id || '',
           event_id: event.id,
           summary: newSummary,
         }],
@@ -80,15 +85,17 @@ export const useDashboardData = () => {
     }
   }
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
   return {
     user,
     events,
     loadingIndex,
     isCalendarConnected,
     generateSummary,
-    handleLogout: async () => {
-      await supabase.auth.signOut()
-      router.push('/login')
-    }
+    handleLogout
   }
 }
