@@ -34,7 +34,7 @@ function SignUpPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center relative px-4">
+    <main className="min-h-screen w-full flex items-center justify-center relative px-4">
       {/* Background */}
       <div className="absolute inset-0 z-0">
         <Image
