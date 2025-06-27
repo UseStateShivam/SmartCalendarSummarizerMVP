@@ -10,6 +10,7 @@ const DashboardPage = () => {
   const [user, setUser] = useState<any>(null)
   const [events, setEvents] = useState<any[]>([])
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null)
+  const [isCalendarConnected, setIsCalendarConnected] = useState<boolean>(false)
 
   useEffect(() => {
     const fetchUserAndSummaries = async () => {
@@ -17,30 +18,20 @@ const DashboardPage = () => {
       if (!user) return router.push('/login')
       setUser(user)
 
-      // Step 1: Fetch calendar events
       const res = await fetch('/api/events')
       const data = await res.json()
+      if (!Array.isArray(data)) return console.error('Expected events array, got:', data)
 
-      if (!Array.isArray(data)) {
-        console.error('Expected events array, got:', data)
-        return
-      }
+      if (data.length > 0) setIsCalendarConnected(true)
 
-      const calendarEvents = data
-
-      // Step 2: Get saved summaries from Supabase
       const { data: saved } = await supabase
         .from('summaries')
         .select('*')
         .eq('user_id', user.id)
 
-      // Step 3: Merge saved summaries into events
-      const merged = calendarEvents.map((event: any) => {
+      const merged = data.map((event: any) => {
         const match = saved?.find((s) => s.event_id === event.id)
-        return {
-          ...event,
-          aiSummary: match?.summary || null,
-        }
+        return { ...event, aiSummary: match?.summary || null }
       })
 
       setEvents(merged)
@@ -60,7 +51,6 @@ const DashboardPage = () => {
   const generateSummary = async (event: any, index: number) => {
     try {
       setLoadingIndex(index)
-
       const res = await fetch('/api/summarize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -69,26 +59,20 @@ const DashboardPage = () => {
 
       const data = await res.json()
       const newSummary = data.summary
-
       const updated = [...events]
       updated[index].aiSummary = newSummary
       setEvents(updated)
 
-      // Proper upsert with error handling
       const { error } = await supabase.from('summaries').upsert(
         [{
           user_id: user.id,
           event_id: event.id,
           summary: newSummary,
         }],
-        { onConflict: 'user_id,event_id' } // ensure proper updating
+        { onConflict: 'user_id,event_id' }
       )
 
-      if (error) {
-        console.error('Supabase upsert error:', error)
-      } else {
-        console.log('Summary saved successfully')
-      }
+      if (error) console.error('Supabase upsert error:', error)
     } catch (err) {
       console.error('Error generating or saving summary:', err)
     } finally {
@@ -102,40 +86,52 @@ const DashboardPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#202224] text-white px-6 py-10">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Welcome, {user?.email?.split('@')[0]}</h1>
-        <button onClick={handleLogout} className="bg-[#B9B9B9] text-black px-4 py-2 rounded hover:opacity-80">
+    <div className="min-h-screen bg-gradient-to-br from-[#1F1F1F] to-[#2D2D2D] text-white px-4 md:px-10 py-8">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
+        <h1 className="text-3xl md:text-4xl font-bold">Welcome, {user?.email?.split('@')[0]}</h1>
+        <button
+          onClick={handleLogout}
+          className="bg-red-600 text-white px-5 py-2 rounded-full font-medium hover:bg-red-700 transition"
+        >
           Logout
         </button>
       </div>
 
-      <button
-        onClick={connectGoogleCalendar}
-        className="bg-[#4880FF] text-white px-6 py-3 rounded-lg mb-10 hover:bg-blue-600"
-      >
-        Connect Google Calendar
-      </button>
+      <div className="mb-10 text-center">
+        <button
+          onClick={connectGoogleCalendar}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full text-lg font-semibold transition"
+        >
+          {isCalendarConnected ? 'Connect Another Calendar' : 'Connect Google Calendar'}
+        </button>
+      </div>
 
-      <div className="grid gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {events.length === 0 ? (
-          <p className="text-[#B9B9B9]">No events yet. Connect your Google Calendar to get started.</p>
+          <div className="col-span-full text-center text-gray-400 text-lg">
+            No events yet. Connect your Google Calendar to get started.
+          </div>
         ) : (
           events.map((event, index) => (
-            <div key={event.id} className="bg-[#F1F4F9] text-black p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold">{event.summary}</h2>
-              <p className="text-sm text-gray-600">{event.start}</p>
-              <p className="mt-2">{event.aiSummary || 'No summary yet.'}</p>
+            <div
+              key={event.id}
+              className="bg-white text-black rounded-2xl shadow-lg p-6 hover:scale-[1.01] transition-transform"
+            >
+              <h2 className="text-xl font-semibold text-blue-800">{event.summary}</h2>
+              <p className="text-sm text-gray-600 mt-1">{new Date(event.start).toLocaleString()}</p>
+              <p className="mt-3 text-gray-800 text-sm min-h-[80px]">
+                {event.aiSummary || 'No summary yet.'}
+              </p>
               <button
                 onClick={() => generateSummary(event, index)}
                 disabled={loadingIndex === index}
-                className="mt-4 bg-[#4880FF] text-white px-4 py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+                className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50 transition"
               >
                 {loadingIndex === index
                   ? 'Generating...'
                   : event.aiSummary
-                    ? 'Regenerate Summary'
-                    : 'Generate Summary'}
+                  ? 'Regenerate Summary'
+                  : 'Generate Summary'}
               </button>
             </div>
           ))
