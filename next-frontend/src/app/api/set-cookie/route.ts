@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 
 export async function POST(req: NextRequest) {
   const { accessToken } = await req.json()
-  const cookieStore = await cookies() // ✅ no await
+  const cookieStore = await cookies() 
 
   if (!accessToken) {
     return new Response(JSON.stringify({ error: 'Missing accessToken' }), { status: 400 })
@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 1 week
+    maxAge: 60 * 60 * 24 * 7, 
   })
 
   return new Response(JSON.stringify({ message: 'Token set in cookie' }), { status: 200 })
