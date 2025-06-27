@@ -1,23 +1,30 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Image from 'next/image'
 import Link from 'next/link'
+import React, { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-function Page() {
-  const router = useRouter()
-  const supabase = createClientComponentClient()
+function SignUpPage() {
   const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const router = useRouter()
+  const supabase = createClientComponentClient()
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { username }, // optional: store username in user metadata
+      }
+    })
 
     if (error) {
       setError(error.message)
@@ -28,23 +35,21 @@ function Page() {
 
   return (
     <main>
-      <div className="absolute inset-0 w-full h-full">
-        <Image
-          src="/Shape.svg"
-          alt="main-shape"
-          layout="fill"
-          objectFit="cover"
-          priority
-        />
-      </div>
-      <div className="relative z-10 flex flex-col items-center justify-center w-[456px] h-[536px] p-8 bg-white rounded-2xl shadow-lg border border-[#B9B9B9]">
+      <Image
+        src="/Shape.svg"
+        alt="main-shape"
+        layout="fill"
+        objectFit="cover"
+        priority
+      />
+      <div className="relative z-10 flex flex-col items-center justify-center w-[456px] h-[600px] p-8 bg-white rounded-2xl shadow-lg border border-[#B9B9B9]">
         <h2 className="text-[#202224] text-[24px] font-semibold text-center mb-2">
-          Login to Account
+          Create an Account
         </h2>
         <p className="text-[#202224] text-[14px] opacity-80 text-center mb-6">
-          Please enter your email and password to continue
+          Create your account to get access to the panel
         </p>
-        <form className="flex flex-col gap-4 w-full items-center" onSubmit={handleLogin}>
+        <form className="flex flex-col gap-4 w-full items-center" onSubmit={handleSignUp}>
           <div className="w-full">
             <label className="text-[#202224] text-[13px] opacity-80">Email address</label>
             <input
@@ -56,12 +61,19 @@ function Page() {
               required
             />
           </div>
+          <div className="w-full">
+            <label className="text-[#202224] text-[13px] opacity-80">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your username"
+              className="w-full mt-1 border border-[#b9b9b975] rounded-md p-3 text-[14px] bg-[#F1F4F9]"
+            />
+          </div>
           <div className="w-full mt-2">
             <label className="text-[#202224] text-[13px] flex justify-between opacity-80">
               Password
-              <Link href="#" className="font-normal opacity-70">
-                Forgot Password?
-              </Link>
             </label>
             <input
               type="password"
@@ -83,13 +95,13 @@ function Page() {
             type="submit"
             className="bg-[#4880FF] text-white rounded-md p-2 font-medium text-center w-[80%] hover:cursor-pointer mt-6"
           >
-            Sign In
+            Request Access
           </button>
         </form>
         <p className="text-center mt-4 text-sm opacity-80 text-[#202224]">
-          Don't have an account?&nbsp;
-          <Link href="/sign-up" className="text-[#4880FF] underline">
-            Create Account
+          Already have an account?&nbsp;
+          <Link href="/login" className="text-[#4880FF] underline">
+            Login
           </Link>
         </p>
       </div>
@@ -97,4 +109,4 @@ function Page() {
   )
 }
 
-export default Page
+export default SignUpPage
