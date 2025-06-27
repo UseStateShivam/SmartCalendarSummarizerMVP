@@ -1,14 +1,14 @@
+// app/(main)/connect/page.tsx
+
 'use client'
 
-import { useGoogleCalendarConnect } from '@/lib/hooks/useGoogleCalendarConnect'
+import { Suspense } from 'react'
+import ConnectClient from './connect-client'
 
-const ConnectPage = () => {
-  const { loading, error } = useGoogleCalendarConnect()
-
-  if (loading) return <p className="p-6 text-white">Connecting to Google Calendar...</p>
-  if (error) return <p className="p-6 text-red-400">{error}</p>
-
-  return null
+export default function ConnectPage() {
+  return (
+    <Suspense fallback={<p className="p-6 text-white">Connecting to Google Calendar...</p>}>
+      <ConnectClient />
+    </Suspense>
+  )
 }
-
-export default ConnectPage  
