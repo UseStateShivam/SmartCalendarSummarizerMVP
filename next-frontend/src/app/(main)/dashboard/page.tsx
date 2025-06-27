@@ -57,7 +57,7 @@ const DashboardPage = () => {
               generateSummary={generateSummary}
             />
           ))
-        )}
+        )}  
       </div>
     </div>
   )
