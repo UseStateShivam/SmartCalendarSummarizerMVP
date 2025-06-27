@@ -3,13 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-
-type EventType = {
-  id: string
-  summary: string
-  start: string
-  aiSummary?: string | null
-}
+import { EventType } from '../types/event'
 
 export const useDashboardData = () => {
   const router = useRouter()

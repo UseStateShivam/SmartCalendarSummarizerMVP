@@ -1,17 +1,11 @@
+import { EventType } from '@/lib/types/event'
 import React from 'react'
 
-type Event = {
-    id: string
-    summary: string
-    start: string | Date
-    aiSummary?: string
-}
-
 type EventCardProps = {
-    event: Event
-    index?: number
-    loadingIndex?: number
-    generateSummary?: (event: Event, index?: number) => void
+    event: EventType
+    index: number
+    loadingIndex?: number | null
+    generateSummary?: (event: EventType, index: number) => void | Promise<void>
 }
 
 function EventCard({ event, index, loadingIndex, generateSummary }: EventCardProps) {
